@@ -28,7 +28,8 @@
     "html-entities": "1.x.x",
     "node-fetch": "1.x.x",
     "promise-wtf": "1.x.x",
-    "xml2json": "0.x.x"
+    "xml2json": "0.x.x",
+    "moment": "2.x.x"
   },
   "devDependencies": {
     "coveralls": "latest",
