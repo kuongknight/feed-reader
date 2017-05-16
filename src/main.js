@@ -11,7 +11,10 @@ var FXML = require('friendly-xml');
 var Entities = require('html-entities').XmlEntities;
 var Entity = new Entities();
 
-var isString = bella.isString;
+var isString = function(str) {
+  if (typeof str === 'string') return true;
+  return false;
+}
 var isArray = bella.isArray;
 var isObject = bella.isObject;
 
