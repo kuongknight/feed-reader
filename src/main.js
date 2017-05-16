@@ -3,106 +3,105 @@
  * @ndaidong
  **/
 
-var bella = require('bellajs');
-var Promise = require('promise-wtf');
-var parser = require('xml2json');
-var fetch = require('node-fetch');
-var FXML = require('friendly-xml');
-var Entities = require('html-entities').XmlEntities;
-var Entity = new Entities();
+var bella = require('bellajs')
+var moment = require('moment')
+var Promise = require('promise-wtf')
+var parser = require('xml2json')
+var fetch = require('node-fetch')
+var FXML = require('friendly-xml')
+var Entities = require('html-entities').XmlEntities
+var Entity = new Entities()
 
-var isString = function(str) {
-  if (typeof str === 'string') return true;
-  return false;
-}
-var isArray = bella.isArray;
-var isObject = bella.isObject;
+var isString = bella.isString
+var isArray = bella.isArray
+var isObject = bella.isObject
 
 var toJSON = (source) => {
   return new Promise((resolve, reject) => {
     fetch(source).then((res) => {
       if (res.ok && res.status === 200) {
-        return res.text();
+        return res.text()
       }
-      throw new Error('Fetching failed: ' + source);
+      throw new Error('Fetching failed: ' + source)
     }).then((xml) => {
       let fallback = () => {
         FXML.ParseString(xml, (ob) => { // eslint-disable-line new-cap
           if (ob && isObject(ob)) {
-            return resolve(ob);
+            return resolve(ob)
           }
-          return reject(new Error('Parsing failed: ' + source));
-        });
-      };
+          return reject(new Error('Parsing failed: ' + source))
+        })
+      }
 
       try {
-        let json = parser.toJson(xml);
-        let ob = JSON.parse(json);
+        let json = parser.toJson(xml)
+        let ob = JSON.parse(json)
         if (ob && isObject(ob)) {
-          return resolve(ob);
+          return resolve(ob)
         }
-        return fallback();
+        return fallback()
       } catch (e) {
-        return fallback(e);
+        return fallback(e)
       }
     }).catch((err) => {
-      return reject(err);
-    });
-  });
-};
+      return reject(err)
+    })
+  })
+}
 
 var normalize = ({link, title, pubDate, author, contentSnippet, content}) => {
-
   if (!link || !title || !isString(link) || !isString(title)) {
-    return false;
+    return false
   }
 
-
-  let publishedDate;
+  let publishedDate
 
   try {
-    let date = bella.date(pubDate);
+    let date = bella.date(pubDate)
     if (date) {
-      publishedDate = date.utc();
+      publishedDate = date.utc()
     }
   } catch (e) {
-    return false;
+    let date = moment(pubDate, 'DD.MM.YYYY hh:mm Uhr').toDate()
+    if (date) {
+      publishedDate = moment.utc(date).format()
+    }
   }
 
   if (!publishedDate) {
-    return false;
+    return false
   }
 
   if (author && isString(author)) {
-    author = Entity.decode(author);
-    author = bella.ucwords(author);
+    author = Entity.decode(author)
+    author = bella.ucwords(author)
   }
 
   if (content && isString(content)) {
-    content = Entity.decode(content);
+    content = Entity.decode(content)
   }
 
   if (contentSnippet && isString(contentSnippet)) {
-    contentSnippet = Entity.decode(contentSnippet);
-    contentSnippet = bella.stripTags(contentSnippet);
+    contentSnippet = Entity.decode(contentSnippet)
+    contentSnippet = bella.stripTags(contentSnippet)
   } else if (content) {
-    contentSnippet = bella.stripTags(content);
+    contentSnippet = bella.stripTags(content)
   }
 
   if (contentSnippet && isString(contentSnippet)) {
-    contentSnippet = contentSnippet.replace(/(\r\n|\n|\r)/gm, ' ');
+    contentSnippet = contentSnippet.replace(/(\r\n|\n|\r)/gm, ' ')
   }
 
   if (contentSnippet && contentSnippet.length > 160) {
-    contentSnippet = bella.truncate(contentSnippet, 156);
+    contentSnippet = bella.truncate(contentSnippet, 156)
   }
 
   try {
-    contentSnippet = Entity.decode(contentSnippet);
-    title = Entity.decode(title);
-    link = Entity.decode(link);
+    contentSnippet = Entity.decode(contentSnippet)
+    title = Entity.decode(title)
+    link = Entity.decode(link)
   } catch (e) {
-    return false;
+    return false
   }
 
   return {
@@ -112,136 +111,133 @@ var normalize = ({link, title, pubDate, author, contentSnippet, content}) => {
     publishedDate,
     author,
     content
-  };
-};
+  }
+}
 
 var toRSS = (res) => {
   let a = {
     title: res.title || '',
     link: res.link,
     entries: []
-  };
-
-  let ls = res.entries || [];
-  if (ls && isArray(ls)) {
-
-    let modify = (item) => {
-      let link = item.link;
-      let title = item.title;
-      let contentSnippet = item.description;
-      let pubDate = item.pubDate;
-      let author = item['dc:creator'] || item.author || item.creator || '';
-      let content = item['content:encoded'] || item.content || item.description || '';
-      return normalize({link, title, pubDate, author, contentSnippet, content});
-    };
-
-    a.entries = ls.map(modify);
   }
-  return a;
-};
+
+  let ls = res.entries || []
+  if (ls && isArray(ls)) {
+    let modify = (item) => {
+      let link = item.link
+      let title = item.title
+      let contentSnippet = item.description
+      let pubDate = item.pubDate
+      let author = item['dc:creator'] || item.author || item.creator || ''
+      let content = item['content:encoded'] || item.content || item.description || ''
+      return normalize({link, title, pubDate, author, contentSnippet, content})
+    }
+
+    a.entries = ls.map(modify)
+  }
+  return a
+}
 
 var toATOM = (res) => {
   let a = {
     title: res.title || '',
     link: res.link,
     entries: []
-  };
+  }
 
-  let ls = res.entries || [];
+  let ls = res.entries || []
   if (ls && isArray(ls)) {
-
     let modify = (item) => {
-      let pubDate = item.updated || item.published;
-      let title = item.title;
+      let pubDate = item.updated || item.published
+      let title = item.title
       if (isObject(title) && title.$t) {
-        title = title.$t;
+        title = title.$t
       }
-      let link = item.link;
+      let link = item.link
       if (isArray(link) && link.length > 0) {
-        let tmpLink = '';
+        let tmpLink = ''
         for (let i = 0; i < link.length; i++) {
           if (link[i].rel === 'alternate') {
-            tmpLink = link[i].href;
-            break;
+            tmpLink = link[i].href
+            break
           }
         }
-        link = tmpLink;
+        link = tmpLink
       } else if (isObject(link) && bella.hasProperty(link, 'href')) {
-        link = link.href;
+        link = link.href
       }
 
-      let contentSnippet = item.summary || item.description || '';
+      let contentSnippet = item.summary || item.description || ''
 
-      let author = item.author || '';
+      let author = item.author || ''
       if (isObject(author) && author.name) {
-        author = author.name;
+        author = author.name
       }
 
-      let content = item.content || contentSnippet || '';
+      let content = item.content || contentSnippet || ''
 
       if (isArray(content)) {
-        content = content[0];
+        content = content[0]
       }
       if (isObject(content)) {
         if (content.$t) {
-          content = content.$t;
+          content = content.$t
         } else {
-          content = '';
+          content = ''
         }
       }
 
-      return normalize({link, title, pubDate, author, contentSnippet, content});
-    };
+      return normalize({link, title, pubDate, author, contentSnippet, content})
+    }
 
-    a.entries = ls.map(modify);
+    a.entries = ls.map(modify)
   }
-  return a;
-};
-
+  return a
+}
 
 var parse = (url) => {
   return new Promise((resolve, reject) => {
     toJSON(url).then((o) => {
-      let result;
+      let result
       if (o.rss && o.rss.channel) {
-        let t = o.rss.channel;
-        let ot = t.title || '';
+        let t = o.rss.channel
+        let ot = t.title || ''
         if (isObject(ot)) {
-          t.title = ot.type === 'text' ? ot.$t : '';
+          t.title = ot.type === 'text' ? ot.$t : ''
         }
         let a = {
           title: t.title,
           link: url,
           entries: t.item
-        };
-        result = toRSS(a);
+        }
+        result = toRSS(a)
       } else if (o.feed && o.feed.entry) {
-        let t = o.feed;
-        let ot = t.title || '';
+        let t = o.feed
+        let ot = t.title || ''
         if (isObject(ot)) {
-          t.title = ot.type === 'text' ? ot.$t : '';
+          t.title = ot.type === 'text' ? ot.$t : ''
         }
         let a = {
           title: t.title,
           link: url,
           entries: t.entry
-        };
-        result = toATOM(a);
+        }
+        result = toATOM(a)
       }
       if (result && result.entries && result.entries.length) {
-        let arr = result.entries;
+        let arr = result.entries
         result.entries = arr.filter((item) => {
-          return item !== false;
-        });
-        return resolve(result);
+          return item !== false
+        })
+        return resolve(result)
       }
-      return reject(new Error('Parsing failed'));
+      return reject(new Error('Parsing failed'))
     }).catch((e) => {
-      return reject(e);
-    });
-  });
-};
+      return reject(e)
+    })
+  })
+}
 
 module.exports = {
   parse
-};
+}
